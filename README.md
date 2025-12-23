@@ -34,7 +34,7 @@ endiannessDecision{"Single or paired end?"}
 preprocessingOption1["Retrieve and stage unclassified.fastq.gz"]
 preprocessingOption2["Retreive and stage unclassified.1.fastq.gz and unclassified.2.fastq.gz"]
 processing["Process files sequentially"]
-output["Result published to fastq_read_stats_results/<CLIMB-ID>"]
+output["Result published to<br>fastq_read_stats_results/&lt;CLIMB‑ID&gt;"]
 graphEnd(["End"])
 
 graphStart --> userInput
