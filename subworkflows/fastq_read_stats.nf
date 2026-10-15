@@ -9,7 +9,8 @@ process generate_fastq_stats {
     tuple val(climb_id), path(fastqgz)
 
     output:
-    path "*.stats"
+    path "*.stats", emit: readQC_csv
+    tuple val(meta), path("readQC_complete.txt"), optional: true, emit: readQC_complete
     
     script:
     """
@@ -28,7 +29,8 @@ process generate_fastq_stats_paired {
     tuple val(climb_id), path(fastqgz1), path(fastqgz2)
 
     output:
-    path "*.stats"
+    path "*.stats", emit: readQC_csv
+    tuple val(meta), path("readQC_complete.txt"), optional: true, emit: readQC_complete
     
     script:
     """

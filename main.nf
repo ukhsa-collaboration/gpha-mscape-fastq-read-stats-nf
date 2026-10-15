@@ -3,6 +3,7 @@
 include { GENERATE_SAMPLESHEET } from './modules/local/samplesheet'
 include { generate_stats      } from './subworkflows/fastq_read_stats'
 include { generate_stats_paired } from './subworkflows/fastq_read_stats'
+include { COLLATE_QC_RESULTS } from './subworkflows/collate_qc_results'
 // include { ONYX_UPLOAD          } from "./modules/local/onyx_upload"
 
 
@@ -41,4 +42,14 @@ workflow {
     generate_stats(ch_fastqs.single_end)
     
     generate_stats_paired(ch_fastqs.paired_end)
+
+    ch_readQC = generate_stats.out.readQC_complete
+        .join(generate_stats.out.readQC_csv)
+
+    COLLATE_QC_RESULTS(
+        ch_readQC,
+        server,
+        bucket,
+        context
+    )
 }
