@@ -42,14 +42,13 @@ workflow {
     generate_stats(ch_fastqs.single_end)
     
     generate_stats_paired(ch_fastqs.paired_end)
-
-    ch_readQC = generate_stats.out.readQC_complete
-        .join(generate_stats.out.readQC_csv)
+    
+    ch_readQC = Channel.of(tuple (generate_stats.out.climb_id, generate_stats.out.readQC_complete, generate_stats.out.readQC_csv))
 
     COLLATE_QC_RESULTS(
         ch_readQC,
-        server,
-        bucket,
-        context
+        params.server,
+        params.bucket,
+        params.context
     )
 }
