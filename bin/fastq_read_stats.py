@@ -139,8 +139,21 @@ def parse_seq_and_get_quality_stats(input_filepath: str) -> None:
     Generates quality stats and writes them directly
     to the stdout in tab-delimited format.
     """
-    recs = pyfastx.Fastq(input_filepath, build_index=False)
+    try:
+        recs = pyfastx.Fastq(input_filepath, build_index=False)
+    except RuntimeError as e:
+        # pyfastx raises RuntimeError for some invalid/empty files:
+        msg = str(e)
+        if "not plain or gzip compressed fastq formatted file" in msg or "empty" in msg.lower():
+            sys.stderr.write(f"Warning: FASTQ file '{input_filepath}' appears empty or invalid: {msg}\n")
+            return
+        # for other RuntimeErrors, re-raise so we don't hide real issues
+        raise
+    except (ValueError, OSError, EOFError) as e:
+        sys.stderr.write(f"Warning: could not open FASTQ file '{input_filepath}': {e}\n")
+        return
     base_filename = os.path.basename(input_filepath)
+
     stats = seq(recs).map(get_quality_stats)
 
     for idx, rec in enumerate(stats):
