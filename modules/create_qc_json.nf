@@ -38,7 +38,6 @@ process CREATE_READQC_ONYX_JSON {
     --store-onyx \\
     -i ${meta} \\
     -s $server \\
-    -v 1.0 \\
     -c $context \\
     -o . \\
     -p "${workflow.manifest.name}, ${workflow.manifest.version}, ${workflow.manifest.homePage}" \\

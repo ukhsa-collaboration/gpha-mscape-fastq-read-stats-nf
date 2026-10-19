@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
 
-# steps required
-# 1. read in csv - generate summary stats
-# 2. create summary stats dictionary
-# 3. create analysis dictionary 
-# 4. write out onyx json 
-
-#!/usr/bin/env python3
-
 """Script and associated functions to take unclassified read QC
 results and create an onyx analysis table format json file.
 """
@@ -19,6 +11,7 @@ import os
 import sys
 from ast import literal_eval
 from pathlib import Path
+from typing import List
 
 import pandas as pd
 import yaml
@@ -65,13 +58,6 @@ def get_args():
         help="Comma separated str in format: 'pipeline name, version, homepage'",
     )
     parser.add_argument(
-        "--version",
-        "-v",
-        type=str,
-        required=True,
-        help="Unclassified read QC version",
-    )
-    parser.add_argument(
         "--readQC_result",
         "-r",
         type=str,
@@ -83,7 +69,8 @@ def get_args():
         "-f",
         type=str,
         required=True,
-        help="Filepath for read QC results",
+        nargs="+",
+        help="Filepath(s) for read QC results. Provide one file for single-end or two files for paired-end (R1 R2).",
     )
     parser.add_argument(
         "--context",
@@ -133,29 +120,81 @@ def set_up_logger(stdout_file):
     return logger
 
 
-def get_unclassified_results(unclass_data_file: Path) -> dict:
-    """Parses the result_data file from unclassified read QC to generate summary statistics.
+def get_unclassified_results(unclass_data_files: List[Path]) -> dict:
+    """Parses one or two result_data file(s) from unclassified read QC to generate summary statistics.
+
     Arguments:
-        all_data_file -- Path to file containing all unclassified read QC results
+        unclass_data_files -- list of Path(s) to file(s) containing unclassified read QC results.
+                              Provide one file for single-end, two files for paired-end.
     Returns:
-        Dictionary of unclassified read QC results
+        Dictionary with combined summary statistics and per-read summaries:
+          - Combined (top-level) keys are the same structure as before (column -> {stat_name: value})
+          - 'unclassified_read_count' top-level key is the combined count across files
+          - 'read1' (and 'read2' if provided) contain per-file summary dicts and per-file counts
     """
 
-    readqc = pd.read_csv(unclass_data_file, sep = "\t")
+    if not isinstance(unclass_data_files, list):
+        unclass_data_files = [unclass_data_files]
 
-    result_dict = readqc.agg(
-    {
-        "mean_phred_score": ["min", "max", "mean","std","median"],
-        "read_length": ["min", "max", "mean","std","median"],
-        "gc_content": ["min", "max", "mean","std","median"],
-        "compression_ratio": ["min", "max", "mean","std","median"],
-        "paired_base_complexity": ["min", "max", "mean","std","median"],
-        
-    }).to_dict()
-    result_dict['unclassified_read_count']=readqc.shape[0]
-    result_dict
+    if len(unclass_data_files) == 0:
+        raise ValueError("No read QC files provided")
+
+    if len(unclass_data_files) > 2:
+        raise ValueError("This script supports at most two input read QC files for paired-end runs")
+
+    dfs = []
+    per_read_results = {}
+
+    for idx, file_path in enumerate(unclass_data_files):
+        p = Path(file_path)
+        if not p.exists():
+            raise FileNotFoundError(f"Read QC file not found: {p}")
+
+        readqc = pd.read_csv(p, sep="\t")
+        dfs.append(readqc)
+
+        stats = readqc.agg(
+            {
+                "mean_phred_score": ["min", "max", "mean", "std", "median"],
+                "read_length": ["min", "max", "mean", "std", "median"],
+                "gc_content": ["min", "max", "mean", "std", "median"],
+                "compression_ratio": ["min", "max", "mean", "std", "median"],
+                "paired_base_complexity": ["min", "max", "mean", "std", "median"],
+            }
+        ).to_dict()
+
+        # per-file unclassified count
+        stats["unclassified_read_count"] = int(readqc.shape[0])
+
+        label = f"read{idx+1}"
+        per_read_results[label] = stats
+
+    # Combined summary across all provided files
+    if len(dfs) == 1:
+        combined = dfs[0]
+        logging.info("Processing single-end unclassified read QC file")
+    else:
+        combined = pd.concat(dfs, ignore_index=True)
+        logging.info("Processing paired-end unclassified read QC files (combined stats produced)")
+
+    combined_result = combined.agg(
+        {
+            "mean_phred_score": ["min", "max", "mean", "std", "median"],
+            "read_length": ["min", "max", "mean", "std", "median"],
+            "gc_content": ["min", "max", "mean", "std", "median"],
+            "compression_ratio": ["min", "max", "mean", "std", "median"],
+            "paired_base_complexity": ["min", "max", "mean", "std", "median"],
+        }
+    ).to_dict()
+    combined_result["unclassified_read_count"] = int(combined.shape[0])
+
+    # Build final dictionary: top-level combined stats plus per-read entries
+    result_dict = combined_result
+    for k, v in per_read_results.items():
+        result_dict[k] = v
 
     return result_dict
+
 
 def make_pipeline_dict(pipeline_str) -> dict:
     """Create dict of pipeline info from input pipeline info string.
@@ -175,10 +214,9 @@ def make_pipeline_dict(pipeline_str) -> dict:
 
     return pipeline_dict
 
-## What else to change here
+
 def create_analysis_fields(
     record_id: str,
-    unclassified_version: str,
     unclassified_qc_results: dict,
     server: str,
     pipeline_info: dict,
@@ -195,9 +233,7 @@ def create_analysis_fields(
     onyx_analysis.outputs = "No s3 outputs"  # ty:ignore[invalid-assignment]
     # Add settings and onyx analysis hash
     methods_fail = onyx_analysis.add_methods(
-        methods_dict={
-            "unclassified_version": unclassified_version,
-        }
+        methods_dict={}
     )
 
     _, onyx_versions, query_exitcode = oa.get_data_and_versions_from_onyx(
@@ -266,7 +302,6 @@ def main():
     # Create onyx analysis dict
     onyx_analysis, exitcode = create_analysis_fields(
         record_id=args.climbid,
-        unclassified_version=args.version,
         unclassified_qc_results=result_dict,
         server=args.server,
         pipeline_info=pipeline_dict,
