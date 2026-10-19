@@ -19,8 +19,8 @@ process CREATE_READQC_ONYX_JSON {
     container 'ghcr.io/ukhsa-collaboration/gpha-mscape-onyx-analysis-helper:0.6.1'
     cpus 2
     memory '2GB'
-    tag "${meta.id}"
-    publishDir "${params.outdir}/${meta.id}/onyx", mode: params.publish_dir_mode
+    tag "${meta}"
+    publishDir "${params.outdir}/${meta}/onyx", mode: params.publish_dir_mode
 
     input:
     // update to unclassified QC 
@@ -29,15 +29,16 @@ process CREATE_READQC_ONYX_JSON {
     val context
 
     output:
-    tuple val(meta), path("${meta.id}.unclassified_readQC.analysis_fields.json"), emit: stats_summary
-    path "${meta.id}.unclassified_readQC.analysis_fields.log.txt", emit: logs
+    tuple val(meta), path("${meta}.unclassified_readQC.analysis_fields.json"), emit: stats_summary
+    path "${meta}.unclassified.readQC.analysis_fields.log.txt", emit: logs
 
     script:
     """
     create_onyx_json.py \\
     --store-onyx \\
-    -i ${meta.id} \\
+    -i ${meta} \\
     -s $server \\
+    -v 1.0 \\
     -c $context \\
     -o . \\
     -p "${workflow.manifest.name}, ${workflow.manifest.version}, ${workflow.manifest.homePage}" \\

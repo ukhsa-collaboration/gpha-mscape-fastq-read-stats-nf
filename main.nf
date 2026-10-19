@@ -39,16 +39,20 @@ workflow {
         }
         .set { ch_fastqs }
             
-    generate_stats(ch_fastqs.single_end)
-    
-    generate_stats_paired(ch_fastqs.paired_end)
-    
-    ch_readQC = Channel.of(tuple (generate_stats.out.climb_id, generate_stats.out.readQC_complete, generate_stats.out.readQC_csv))
+    readQC_ch = generate_stats(ch_fastqs.single_end).readQC
+    readQC_ch.view()
+    readQC_paired_ch = generate_stats_paired(ch_fastqs.paired_end).readQC
 
-    COLLATE_QC_RESULTS(
-        ch_readQC,
-        params.server,
-        params.bucket,
-        params.context
+   
+    
+
+   COLLATE_QC_RESULTS(
+       readQC_ch,
+       params.server,
+       params.bucket,
+       params.context
     )
+
+   //emit:
+   //final_summary = COLLATE_QC_RESULTS.out.readQC_summary
 }
