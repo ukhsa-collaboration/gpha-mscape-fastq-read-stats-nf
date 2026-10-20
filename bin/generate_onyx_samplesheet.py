@@ -25,6 +25,7 @@ def get_args() -> argparse.Namespace:
         "-c", "--columns", help="Columns from Onyx, should be comma seperated string.", required=True, type=str
     )
     parser.add_argument("-o", "--output", help="Output filepath.", required=True, type=Path)
+    parser.add_argument("-s", "--server", help="server - mscape, devscape, synthscape.", required=True, type=str)
     args = parser.parse_args()
     return args
 
@@ -39,7 +40,7 @@ def get_record(sample_id: str, columns: list) -> tuple[dict, int]:
         columns.append("climb_id")
 
     with OnyxClient(config) as client:
-        df = pd.DataFrame(client.filter(project="devscape", climb_id=sample_id, include=columns))
+        df = pd.DataFrame(client.filter(project=args.server, climb_id=sample_id, include=columns))
     exit_code = 0
 
     # TODO: handle no records returned
