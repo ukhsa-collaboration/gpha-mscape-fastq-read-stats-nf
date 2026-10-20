@@ -39,7 +39,7 @@ def get_record(sample_id: str, columns: list) -> tuple[dict, int]:
         columns.append("climb_id")
 
     with OnyxClient(config) as client:
-        df = pd.DataFrame(client.filter(project="mscape", climb_id=sample_id, include=columns))
+        df = pd.DataFrame(client.filter(project="devscape", climb_id=sample_id, include=columns))
     exit_code = 0
 
     # TODO: handle no records returned

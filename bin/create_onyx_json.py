@@ -40,7 +40,7 @@ def get_args():
         "-s",
         type=str,
         required=True,
-        choices=["mscape", "synthscape"],
+        choices=["mscape", "synthscape","devscape"],
         help="Specify server code is being run on",
     )
     parser.add_argument(
@@ -186,7 +186,7 @@ def get_unclassified_results(unclass_data_files: List[Path]) -> dict:
             "paired_base_complexity": ["min", "max", "mean", "std", "median"],
         }
     ).to_dict()
-    combined_result["unclassified_read_count"] = int(combined.shape[0])
+    combined_result["unclassified_read_count"] = f'{int(combined.shape[0])} unclassified reads'
 
     # Build final dictionary: top-level combined stats plus per-read entries
     result_dict = combined_result
@@ -239,6 +239,7 @@ def create_analysis_fields(
     _, onyx_versions, query_exitcode = oa.get_data_and_versions_from_onyx(
         sample_id=record_id, server=server, fields=["climb_id"]
     )
+    print(_, onyx_versions, query_exitcode)
 
     if query_exitcode == 0:
         # Add onyx versions and orange box version
@@ -250,14 +251,20 @@ def create_analysis_fields(
         methods_versions_fail = False
 
     headline_result = unclassified_qc_results["unclassified_read_count"]
+    print(headline_result)
     results_fail = onyx_analysis.add_results(
         top_result=headline_result, results_dict=unclassified_qc_results
     )
+    print(results_fail)
     onyx_analysis.add_server_records(sample_id=record_id, server_name=server)
     required_field_fail, attribute_fail = onyx_analysis.check_analysis_object(
         publish_analysis=False
     )
-
+    print(methods_fail,
+            methods_versions_fail,
+            results_fail,
+            required_field_fail,
+            attribute_fail)
     if any(
         [
             methods_fail,

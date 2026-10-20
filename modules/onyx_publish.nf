@@ -17,21 +17,21 @@ process ONYX_PUBLISH {
     container 'ghcr.io/ukhsa-collaboration/gpha-mscape-onyx-analysis-helper:0.6.5'
     cpus 1
     memory '1GB'
-    tag "${meta.id}"
-    publishDir "${params.outdir}/${meta.id}/onyx", mode: params.publish_dir_mode
+    tag "${meta}"
+    publishDir "${params.outdir}/${meta}/onyx", mode: params.publish_dir_mode
 
     input:
     val server
     tuple val(meta), path(analysis_id)
 
     output:
-    tuple val(meta), path("${meta.id}.onyx_analysis.publish.analysis_id.txt"), emit: analysis_id
-    path "${meta.id}.onyx_analysis.publish.log.txt", emit: logs
+    tuple val(meta), path("${meta}.onyx_analysis.publish.analysis_id.txt"), emit: analysis_id
+    path "${meta}.onyx_analysis.publish.log.txt", emit: logs
 
     script:
     """
     onyx_analysis publish \\
-    -i ${meta.id} \\
+    -i ${meta} \\
     -s $server \\
     -o . \\
     -a $analysis_id \\

@@ -16,7 +16,7 @@ process CREATE_READQC_ONYX_JSON {
             - logs: Path to log file for the process
 
     */
-    container 'ghcr.io/ukhsa-collaboration/gpha-mscape-onyx-analysis-helper:0.6.1'
+    container 'ghcr.io/ukhsa-collaboration/gpha-mscape-onyx-analysis-helper:0.6.7'
     cpus 2
     memory '2GB'
     tag "${meta}"

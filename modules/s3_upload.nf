@@ -18,28 +18,28 @@ process S3_UPLOAD {
     container 'ghcr.io/ukhsa-collaboration/gpha-mscape-onyx-analysis-helper:0.6.5'
     cpus 1
     memory '1GB'
-    tag "${meta.id}"
+    tag "${meta}"
     stageInMode 'copy'
-    publishDir "${params.outdir}/${meta.id}/onyx", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/${meta}/onyx", mode: params.publish_dir_mode
 
     input:
-    tuple val(meta), path(alldata_csv), path(quality_csv), path(result_csv), path(analysis_id)
+    tuple val(meta), path(result_csv), path(analysis_id)
     val server
     val bucket
 
     output:
-    tuple val(meta), path("${meta.id}.onyx_analysis.s3_upload.analysis_fields.json"), emit: s3_locations
-    path "${meta.id}.onyx_analysis.s3_upload.log.txt", emit: logs
+    tuple val(meta), path("${meta}.onyx_analysis.s3_upload.analysis_fields.json"), emit: s3_locations
+    path "${meta}.onyx_analysis.s3_upload.log.txt", emit: logs
 
     script:
     """
     onyx_analysis s3_upload \\
-    -i ${meta.id} \\
+    -i ${meta} \\
     -s $server \\
     -b $bucket \\
     -o . \\
     -a $analysis_id \\
-    -f "${alldata_csv},${quality_csv},${result_csv}" \\
+    -f "${result_csv}" \\
     --prod
     """
     }
