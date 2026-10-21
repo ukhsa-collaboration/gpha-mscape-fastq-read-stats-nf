@@ -31,7 +31,7 @@ def get_args() -> argparse.Namespace:
 
 
 @oa.call_to_onyx
-def get_record(sample_id: str, columns: list) -> tuple[dict, int]:
+def get_record(sample_id: str, server: str, columns: list) -> tuple[dict, int]:
     """
     Using unique sample ID, query Onyx database to get appropriate columns
     """
@@ -40,7 +40,7 @@ def get_record(sample_id: str, columns: list) -> tuple[dict, int]:
         columns.append("climb_id")
 
     with OnyxClient(config) as client:
-        df = pd.DataFrame(client.filter(project=args.server, climb_id=sample_id, include=columns))
+        df = pd.DataFrame(client.filter(project=server, climb_id=sample_id, include=columns))
     exit_code = 0
 
     # TODO: handle no records returned
@@ -50,7 +50,7 @@ def get_record(sample_id: str, columns: list) -> tuple[dict, int]:
 def main() -> None:
     args = get_args()
     col_names = args.columns.split(",")
-    df, exit_code = get_record(args.id, col_names)
+    df, exit_code = get_record(args.id, args.server, col_names)
     df.to_csv(args.output, index=False)
 
 

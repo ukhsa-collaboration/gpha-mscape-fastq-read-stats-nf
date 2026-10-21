@@ -14,10 +14,10 @@ workflow {
     }
     else if(params.samplesheet){
         log.info "Samplesheet input: ${params.samplesheet}"
-        samplesheet_ch = channel.fromPath(params.samplesheet)
+        samplesheet_ch = channel.fromPath(params.samplesheet,params.server)
     } else if (params.unique_id) {
         log.info "Unique ID input: ${params.unique_id}"
-        sample_ch = Channel.of(tuple (params.unique_id, params.samplesheet_columns))
+        sample_ch = Channel.of(tuple (params.unique_id, params.samplesheet_columns,params.server))
         samplesheet_ch = GENERATE_SAMPLESHEET(sample_ch).samplesheet
     }
     else{
@@ -38,21 +38,24 @@ workflow {
             single_end: v.size() == 2
         }
         .set { ch_fastqs }
-            
+    
     readQC_ch = generate_stats(ch_fastqs.single_end).readQC
-    readQC_ch.view()
+
     readQC_paired_ch = generate_stats_paired(ch_fastqs.paired_end).readQC
 
-   
+    collate_qc_results_ch = readQC_ch
+    .map { sample_id, read1 -> tuple(sample_id, [read1]) }
+    .mix(
+        readQC_paired_ch
+            .map { sample_id, read1, read2 -> tuple(sample_id, [read1, read2]) }
+    )
     
-
-   COLLATE_QC_RESULTS(
-       readQC_ch,
+    COLLATE_QC_RESULTS(
+       collate_qc_results_ch,
        params.server,
-       params.bucket,
        params.context
     )
 
-   //emit:
-   //final_summary = COLLATE_QC_RESULTS.out.readQC_summary
+   emit:
+   final_summary = COLLATE_QC_RESULTS.out.readQC_summary
 }

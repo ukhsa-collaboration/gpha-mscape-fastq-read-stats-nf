@@ -60,8 +60,8 @@ process generate_fastq_stats_paired {
     script:
     """
     set +e
-    fastq_read_stats.py ${fastqgz1} > ${fastqgz1}.stats &>> fastq_stdout.txt
-    fastq_read_stats.py ${fastqgz2} > ${fastqgz2}.stats &>> fastq_stdout.txt
+    fastq_read_stats.py ${fastqgz1} > ${fastqgz1}.stats 2> fastq_stdout_r1.txt
+    fastq_read_stats.py ${fastqgz2} > ${fastqgz2}.stats 2> fastq_stdout_r2.txt
     exit_status=\$?
     if [ \$exit_status -eq 0 ] ; then
         echo "True" > readQC_complete.txt

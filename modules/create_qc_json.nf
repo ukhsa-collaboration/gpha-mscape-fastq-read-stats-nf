@@ -29,7 +29,7 @@ process CREATE_READQC_ONYX_JSON {
     val context
 
     output:
-    tuple val(meta), path("${meta}.unclassified_readQC.analysis_fields.json"), emit: stats_summary
+    path("${meta}.unclassified_readQC.analysis_fields.json"), emit: stats_summary
     path "${meta}.unclassified.readQC.analysis_fields.log.txt", emit: logs
 
     script:

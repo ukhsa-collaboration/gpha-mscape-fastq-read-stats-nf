@@ -1,10 +1,6 @@
 #!/usr/bin/env nextflow
 
 include { CREATE_READQC_ONYX_JSON } from '../modules/create_qc_json'
-include { ONYX_WRITE } from '../modules/onyx_write'
-include { S3_UPLOAD } from '../modules/s3_upload'
-include { ONYX_UPDATE } from '../modules/onyx_update'
-include { ONYX_PUBLISH } from '../modules/onyx_publish'
 
 /*******************************************************************************
  * COLLATE_QC_RESULTS
@@ -16,64 +12,46 @@ include { ONYX_PUBLISH } from '../modules/onyx_publish'
 
 workflow COLLATE_QC_RESULTS {
     take:
-    ch_readQC   // channel of tuples: (climb_id, readQC_complete_file, stats_file(s))
+    collate_qc_results_ch   // channel of tuples: (climb_id, readQC_complete_file, stats_file(s))
     server      // val: name of server running pipeline on
-    bucket      // val: name of bucket to upload results to
     context     // val: string context from the sample sheet
 
     main:
 
-    // Normalize: ensure result_csv is a single file (if *.stats matched multiple, pick first)
-    normalized_readQC = ch_readQC
-        .map { climb_id, readQC_complete, result_csv ->
-            def stats_file = (result_csv instanceof List) ? result_csv[0] : result_csv
-            tuple(climb_id, readQC_complete, stats_file)
+    // Unwrap the nested tuple shape:
+    // (climb_id, [readQC_complete, [stats_file_1, stats_file_2]])
+    normalized_qc = collate_qc_results_ch
+        .map { climb_id, qc_bundle ->
+            def readQC_complete = qc_bundle[0]
+            def stats_files = qc_bundle[1]
+
+            // ensure stats_files is a list
+            if (!(stats_files instanceof List)) {
+                stats_files = [stats_files]
+            }
+
+            tuple(climb_id, readQC_complete, stats_files)
         }
 
-    // Branch into pass/fail based on the contents of readQC_complete.txt
-    normalized_readQC
-        .branch { climb_id, readQC_complete, result_csv ->
-            pass: readQC_complete.text.contains("True")
-            fail: readQC_complete.text.contains("False")
+    normalized_qc
+        .branch { climb_id, readQC_complete, stats_files ->
+            pass: readQC_complete.toString().contains("True")
+            fail: readQC_complete.toString().contains("False")
         }
         .set { readQC_status }
-    normalized_readQC
-        .map { meta, readQC_complete, result_csv -> tuple(meta, readQC_complete.text, result_csv) }
+
+    normalized_qc
+        .map { climb_id, readQC_complete, stats_files ->
+            def qc_text = readQC_complete instanceof Path || readQC_complete instanceof File
+                ? readQC_complete.text
+                : readQC_complete.toString()
+
+            tuple(climb_id, qc_text, stats_files)
+        }
         .set { normalized_readQC_complete }
-    // Create onyx JSON summary from the readQC tuples
+
     CREATE_READQC_ONYX_JSON(normalized_readQC_complete, server, context)
-
-    // Write to onyx (example usage)
-    ONYX_WRITE(CREATE_READQC_ONYX_JSON.out.stats_summary, server)
-
-    // Prepare S3 upload inputs: join the readQC tuples with the analysis id from ONYX_WRITE
-    ch_s3_inputs = normalized_readQC
-        .join(ONYX_WRITE.out.analysis_id)
-         //Filter to only successful runs before uploading
-        .filter { climb_id, readQC_complete, result_csv, analysis_id -> readQC_complete.text.contains("True") }
-        .map { climb_id, readQC_complete, result_csv, analysis_id ->
-            tuple(climb_id, result_csv, analysis_id)
-        }
-
-    // Upload results to S3
-    S3_UPLOAD(ch_s3_inputs, server, bucket)
-
-    // Update onyx with S3 locations
-    ch_update_inputs = ONYX_WRITE.out.analysis_id
-        .join(S3_UPLOAD.out.s3_locations)
-    ONYX_UPDATE(ch_update_inputs, server)
-
-    // Publish (combine write/update outputs for publish)
-    ch_publish = channel.of()
-        .concat(ONYX_WRITE.out.analysis_id, ONYX_UPDATE.out.analysis_id.ifEmpty([[], []]))
-        .collect()
-        .map { meta_write, id_write, meta_update, id_update ->
-            tuple(meta_write, id_write)
-        }
-    ONYX_PUBLISH(server, ch_publish)
-
-
+    
     emit:
-    readQC_summary = CREATE_READQC_ONYX_JSON.out.stats_summary   // channel [val(meta), path(readQC_json)]
-    readQC_analysis_id = ONYX_PUBLISH.out.analysis_id
+    readQC_summary = CREATE_READQC_ONYX_JSON.out.stats_summary   // path(readQC_json)]
 }
