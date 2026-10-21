@@ -20,10 +20,9 @@ process CREATE_READQC_ONYX_JSON {
     cpus 2
     memory '2GB'
     tag "${meta}"
-    publishDir "${params.outdir}/${meta}/onyx", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/${meta}", mode: 'copy'
 
     input:
-    // update to unclassified QC 
     tuple val(meta), val(readQC_status), path(csv)
     val server
     val context

@@ -1,13 +1,5 @@
 #!/usr/bin/env nextflow
 
-// module includes (adjust relative paths as needed)
-include { CREATE_READQC_ONYX_JSON } from '../modules/create_qc_json'
-include { ONYX_WRITE } from '../modules/onyx_write'
-include { S3_UPLOAD } from '../modules/s3_upload'
-include { ONYX_UPDATE } from '../modules/onyx_update'
-include { ONYX_PUBLISH } from '../modules/onyx_publish'
-
-
 /*******************************************************************************
  * Processes: generate_fastq_stats (single & paired)
  *
@@ -20,7 +12,7 @@ include { ONYX_PUBLISH } from '../modules/onyx_publish'
 process generate_fastq_stats {
     label "process_tiny"
     container "community.wave.seqera.io/library/pyfastx_pip_pyfunctional_pytest:10dc317fc97efcc2"
-    publishDir "fastq_read_stats_results/", mode: 'copy'
+    publishDir "${params.outdir}/${climb_id}", mode: 'copy'
 
     input:
     tuple val(climb_id), path(fastqgz)
@@ -49,7 +41,7 @@ process generate_fastq_stats {
 process generate_fastq_stats_paired {
     label "process_tiny"
     container "community.wave.seqera.io/library/pyfastx_pip_pyfunctional_pytest:10dc317fc97efcc2"
-    publishDir "fastq_read_stats_results/", mode: 'copy'
+    publishDir "${params.outdir}/${climb_id}", mode: 'copy'
 
     input:
     tuple val(climb_id), path(fastqgz1), path(fastqgz2)
