@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-import os
-import gzip
-import sys
 import argparse
 import functools
+import gzip
+import os
+import sys
+from collections import Counter
+from typing import NamedTuple
+
 import pyfastx
 from functional import seq
-from typing import NamedTuple
-from collections import Counter
 
 __version__ = "0.1.0"
 
@@ -62,9 +63,11 @@ def phred_to_ratio(inputPhredScore: int) -> float:
     """
     return 10 ** ((-1 * inputPhredScore) / 10)
 
+
 @functools.cache
 def phred_ascii_to_ratio(inputPhredAsciiChar):
     return phred_to_ratio(phred_ascii_to_int(inputPhredAsciiChar))
+
 
 def get_gc_content(inputSequence: str) -> int | float:
     """
@@ -102,7 +105,7 @@ def get_paired_base_complexity(inputSequence: str) -> int | float:
     tends towards something sane as the length increases.
     """
     seqlen = len(inputSequence)
-    
+
     ## avoids a ZeroDivisionError
     if seqlen == 1:
         return 0
@@ -121,9 +124,7 @@ def get_quality_stats(input_seq_record) -> QualityStats:
 
     return_rec = QualityStats(
         read_id=read_id,
-        mean_phred_score=(
-            seq(list(quality)).map(phred_ascii_to_ratio).average()
-        ),
+        mean_phred_score=(seq(list(quality)).map(phred_ascii_to_ratio).average()),
         read_length=len(sequence),
         gc_content=get_gc_content(sequence.upper()),
         compression_ratio=get_compression_ratio(sequence),
@@ -144,13 +145,20 @@ def parse_seq_and_get_quality_stats(input_filepath: str) -> None:
     except RuntimeError as e:
         # pyfastx raises RuntimeError for some invalid/empty files:
         msg = str(e)
-        if "not plain or gzip compressed fastq formatted file" in msg or "empty" in msg.lower():
-            sys.stderr.write(f"Warning: FASTQ file '{input_filepath}' appears empty or invalid: {msg}\n")
+        if (
+            "not plain or gzip compressed fastq formatted file" in msg
+            or "empty" in msg.lower()
+        ):
+            sys.stderr.write(
+                f"Warning: FASTQ file '{input_filepath}' appears empty or invalid: {msg}\n"
+            )
             return
         # for other RuntimeErrors, re-raise so we don't hide real issues
         raise
     except (ValueError, OSError, EOFError) as e:
-        sys.stderr.write(f"Warning: could not open FASTQ file '{input_filepath}': {e}\n")
+        sys.stderr.write(
+            f"Warning: could not open FASTQ file '{input_filepath}': {e}\n"
+        )
         return
     base_filename = os.path.basename(input_filepath)
 
