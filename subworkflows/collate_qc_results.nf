@@ -18,34 +18,9 @@ workflow COLLATE_QC_RESULTS {
 
     main:
 
-    // Unwrap the nested tuple shape:
-    // (climb_id, [readQC_complete, [stats_file_1, stats_file_2]])
-    normalized_qc = collate_qc_results_ch
-        .map { climb_id, qc_bundle ->
-            def readQC_complete = qc_bundle[0]
-            def stats_files = qc_bundle[1]
-
-            // ensure stats_files is a list
-            if (!(stats_files instanceof List)) {
-                stats_files = [stats_files]
-            }
-
-            tuple(climb_id, readQC_complete, stats_files)
-        }
-
-    normalized_qc
-        .branch { climb_id, readQC_complete, stats_files ->
-            pass: readQC_complete.toString().contains("True")
-            fail: readQC_complete.toString().contains("False")
-        }
-        .set { readQC_status }
-
-    normalized_qc
-        .map { climb_id, readQC_complete, stats_files ->
-            def qc_text = readQC_complete instanceof Path || readQC_complete instanceof File
-                ? readQC_complete.text
-                : readQC_complete.toString()
-
+    collate_qc_results_ch
+        .map { climb_id, readqc_file, stats_files ->
+            def qc_text = readqc_file.text
             tuple(climb_id, qc_text, stats_files)
         }
         .set { normalized_readQC_complete }

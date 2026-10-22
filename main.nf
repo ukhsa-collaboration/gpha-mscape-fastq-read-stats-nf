@@ -44,11 +44,12 @@ workflow {
     readQC_paired_ch = generate_stats_paired(ch_fastqs.paired_end).readQC
 
     collate_qc_results_ch = readQC_ch
-    .map { sample_id, read1 -> tuple(sample_id, [read1]) }
-    .mix(
-        readQC_paired_ch
-            .map { sample_id, read1, read2 -> tuple(sample_id, [read1, read2]) }
-    )
+        .mix(readQC_paired_ch)
+        .map { sample_id, readqc_file, stats_files ->
+            def normalized_stats = (stats_files instanceof List) ? \
+                stats_files : [stats_files]
+                tuple(sample_id, readqc_file, normalized_stats)
+        }
     
     COLLATE_QC_RESULTS(
        collate_qc_results_ch,
