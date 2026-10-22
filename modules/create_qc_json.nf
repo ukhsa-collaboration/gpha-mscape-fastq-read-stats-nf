@@ -34,7 +34,6 @@ process CREATE_READQC_ONYX_JSON {
     script:
     """
     create_onyx_json.py \\
-    --store-onyx \\
     -i ${meta} \\
     -s $server \\
     -c $context \\
